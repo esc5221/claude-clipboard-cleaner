@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Clipboard Cleaner — Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .container {
+    max-width: 960px;
+    width: 100%;
+  }
+  h1 {
+    text-align: center;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 40px;
+    letter-spacing: -0.5px;
+  }
+  .demo {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  .panel {
+    flex: 1;
+    background: #0d1117;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #30363d;
+  }
+  .panel-header {
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel.before .panel-header {
+    background: #1c1c3a;
+    color: #f87171;
+  }
+  .panel.after .panel-header {
+    background: #0d2818;
+    color: #4ade80;
+  }
+  .code {
+    padding: 16px;
+    font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: hidden;
+    white-space: pre;
+  }
+  .line {
+    display: block;
+    position: relative;
+  }
+  .trailing {
+    background: #f8717133;
+    color: #f8717166;
+    border-bottom: 1px dashed #f8717144;
+  }
+  .leading {
+    background: #fb923c33;
+    color: #fb923c66;
+  }
+  .text { color: #e0e0e0; }
+  .green { color: #4ade80; }
+  .dim { color: #666; }
+  .arrow-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding-top: 40px;
+  }
+  .arrow {
+    font-size: 36px;
+    color: #C15F3C;
+  }
+  .arrow-label {
+    font-size: 14px;
+    color: #C15F3C;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .arrow-sub {
+    font-size: 12px;
+    color: #C15F3C;
+    font-weight: 600;
+    white-space: nowrap;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .legend {
+    margin-top: 24px;
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    font-size: 12px;
+    color: #888;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-swatch {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Claude Clipboard Cleaner</h1>
+
+  <div class="demo">
+    <!-- BEFORE -->
+    <div class="panel before">
+      <div class="panel-header">Copied from terminal</div>
+      <div class="code" id="before"></div>
+    </div>
+
+    <!-- ARROW -->
+    <div class="arrow-col">
+      <div class="arrow">→</div>
+      <div class="arrow-label">⌘C</div>
+      <div class="arrow-sub">auto-clean</div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="panel after">
+      <div class="panel-header">Pasted — clean</div>
+      <div class="code" id="after"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:#f8717133;border:1px solid #f8717155;"></span>
+      Trailing spaces (removed)
+    </div>
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:#fb923c33;border:1px solid #fb923c55;"></span>
+      Leading 2-space indent (removed)
+    </div>
+  </div>
+</div>
+
+<script>
+const WIDTH = 58;
+const lines = [
+  { text: '●', rest: ' Explore(project structure)', indent: 0, dotCls: 'green' },
+  { text: '⎿  Done (3 tool uses · 12.4k tokens · 2s)', indent: 0, cls: 'dim' },
+  { text: '', indent: 0 },
+  { text: '⏺ Swift MenuBar app. Two detection paths:', indent: 0 },
+  { text: 'trailing space padding and leading', indent: 2 },
+  { text: '2-space indent.', indent: 2 },
+  { text: '', indent: 0 },
+  { text: 'claude-clipboard-cleaner/', indent: 2 },
+  { text: '├── CleanLogic.swift        # detection', indent: 2 },
+  { text: '├── ClaudeClipboardCleaner.swift  # app', indent: 2 },
+  { text: '├── Tests/CleanerTests.swift', indent: 2 },
+  { text: '├── build.sh', indent: 2 },
+  { text: '└── test.sh', indent: 2 },
+];
+
+const beforeEl = document.getElementById('before');
+const afterEl = document.getElementById('after');
+
+lines.forEach((line) => {
+  const { text, indent, cls, dotCls, rest } = line;
+  const fullText = text + (rest || '');
+  const content = ' '.repeat(indent) + fullText;
+  const trailing = Math.max(0, WIDTH - content.length);
+  const trailingStr = '·'.repeat(trailing);
+  const textCls = cls || 'text';
+
+  // Before panel
+  const lineEl = document.createElement('span');
+  lineEl.className = 'line';
+
+  if (dotCls && rest) {
+    // Special: colored dot + normal rest
+    lineEl.innerHTML =
+      `<span class="${dotCls}">${escHtml(text)}</span>` +
+      `<span class="text">${escHtml(rest)}</span>` +
+      (trailing > 0 ? `<span class="trailing">${trailingStr}</span>` : '');
+  } else if (indent > 0 && fullText) {
+    lineEl.innerHTML =
+      `<span class="leading">${' '.repeat(indent)}</span>` +
+      `<span class="${textCls}">${escHtml(fullText)}</span>` +
+      (trailing > 0 ? `<span class="trailing">${trailingStr}</span>` : '');
+  } else if (!fullText) {
+    lineEl.innerHTML = `<span class="trailing">${'·'.repeat(WIDTH)}</span>`;
+  } else {
+    lineEl.innerHTML =
+      `<span class="${textCls}">${escHtml(fullText)}</span>` +
+      (trailing > 0 ? `<span class="trailing">${trailingStr}</span>` : '');
+  }
+  lineEl.innerHTML += '\n';
+  beforeEl.appendChild(lineEl);
+
+  // After panel: clean
+  const afterLine = document.createElement('span');
+  afterLine.className = 'line';
+  if (dotCls && rest) {
+    afterLine.innerHTML = `<span class="text">${escHtml(text)}${escHtml(rest)}</span>\n`;
+  } else {
+    afterLine.innerHTML = `<span class="${textCls}">${escHtml(fullText)}</span>\n`;
+  }
+  afterEl.appendChild(afterLine);
+});
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
