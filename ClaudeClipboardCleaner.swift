@@ -13,6 +13,7 @@ class ClipboardCleaner: NSObject, NSApplicationDelegate {
     private var statsItem: NSMenuItem!
     private var toggleItem: NSMenuItem!
     private var launchAtLoginItem: NSMenuItem!
+    private var originalTitle: NSAttributedString?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusBar()
@@ -22,15 +23,19 @@ class ClipboardCleaner: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar
 
     private func setupStatusBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            if let image = NSImage(systemSymbolName: "scissors", accessibilityDescription: "Claude Clipboard Cleaner") {
-                image.isTemplate = true
-                button.image = image
-            } else {
-                button.title = "✂"
-            }
+            let title = NSMutableAttributedString()
+            title.append(NSAttributedString(string: "⌘", attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .regular),
+                .baselineOffset: 0.5 as CGFloat,
+            ]))
+            title.append(NSAttributedString(string: "C", attributes: [
+                .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+            ]))
+            button.attributedTitle = title
+            originalTitle = title
         }
 
         let menu = NSMenu()
@@ -95,13 +100,13 @@ class ClipboardCleaner: NSObject, NSApplicationDelegate {
 
     private func flashIcon() {
         guard let button = statusItem.button else { return }
-        let original = button.image
-        if let check = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil) {
-            check.isTemplate = true
-            button.image = check
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            button.image = original
+        button.attributedTitle = NSAttributedString(string: "✓", attributes: [
+            .font: NSFont.systemFont(ofSize: 14, weight: .bold),
+        ])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            if let original = self?.originalTitle {
+                button.attributedTitle = original
+            }
         }
     }
 

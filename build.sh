@@ -22,5 +22,23 @@ swiftc -O \
 
 cp Info.plist "$APP_BUNDLE/Contents/"
 
+# Icon (generate if missing)
+if [ ! -f build/AppIcon.icns ]; then
+    echo "🎨 Generating icon..."
+    swiftc -O -target arm64-apple-macosx13.0 -framework AppKit \
+        -o build/generate_icon scripts/generate_icon.swift
+    ./build/generate_icon
+fi
+cp build/AppIcon.icns "$APP_BUNDLE/Contents/Resources/"
+
+# Menubar icon (generate if missing)
+if [ ! -f build/menubar_icon.png ]; then
+    echo "🎨 Generating menubar icon..."
+    swiftc -O -target arm64-apple-macosx13.0 -framework AppKit \
+        -o build/generate_menubar scripts/generate_menubar_icon.swift
+    ./build/generate_menubar
+fi
+cp build/menubar_icon.png "$APP_BUNDLE/Contents/Resources/"
+
 echo "✅ Built: $APP_BUNDLE"
 echo "   Run: open \"$APP_BUNDLE\""
