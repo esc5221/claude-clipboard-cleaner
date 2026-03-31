@@ -61,6 +61,12 @@ class ClipboardCleaner: NSObject, NSApplicationDelegate {
             menu.addItem(NSMenuItem.separator())
         }
 
+        let starItem = NSMenuItem(title: "★ Star on GitHub", action: #selector(openGitHub), keyEquivalent: "")
+        starItem.target = self
+        menu.addItem(starItem)
+
+        menu.addItem(NSMenuItem.separator())
+
         let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
 
@@ -115,6 +121,10 @@ class ClipboardCleaner: NSObject, NSApplicationDelegate {
     @objc private func toggleEnabled(_ sender: NSMenuItem) {
         isEnabled.toggle()
         sender.state = isEnabled ? .on : .off
+    }
+
+    @objc private func openGitHub() {
+        NSWorkspace.shared.open(URL(string: "https://github.com/esc5221/claude-clipboard-cleaner")!)
     }
 
     @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
