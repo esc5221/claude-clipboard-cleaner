@@ -2,7 +2,10 @@
 
 macOS MenuBar app that automatically cleans Claude Code terminal output when you copy it.
 
-![Demo](docs/demo.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/demo-dark.png">
+  <img src="docs/demo-light.png" alt="Demo">
+</picture>
 
 When you copy text from Claude Code's terminal, it comes with trailing space padding and leading 2-space indentation. This app detects that pattern and strips it automatically — so your paste is always clean.
 
