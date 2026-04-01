@@ -157,6 +157,151 @@ group("N4: Markdown") {
     check(cleanClaudeOutput("# Title\n\nParagraph.\n\n- One\n- Two\n- Three\n\n## Next") == nil, "markdown")
 }
 
+// MARK: - Paragraph Unwrapping
+
+group("U1: Wrapped paragraph is joined") {
+    let input = pad("""
+      This is a paragraph of text that Claude has outputted and it wraps at the
+      terminal width so each line is about the same length and when you copy it
+      you get hard line breaks that you do not want in the pasted text.
+    """)
+    let result = cleanClaudeOutput(input)
+    check(result != nil, "detected")
+    if let r = result {
+        let lines = r.components(separatedBy: "\n")
+        check(lines.count == 1, "joined into single line, got \(lines.count)")
+        check(r.contains("outputted and it wraps at the terminal"), "no extra spaces at join")
+    }
+}
+
+group("U2: Paragraph breaks preserved") {
+    let input = pad("""
+      First paragraph that is long enough to be considered a wrapped line in the
+      terminal output and should be joined into a single paragraph of text here.
+
+      Second paragraph that is also long enough to be considered a wrapped line
+      in the terminal and should remain separate from the first paragraph above.
+    """)
+    let result = cleanClaudeOutput(input)
+    check(result != nil, "detected")
+    if let r = result {
+        let paragraphs = r.components(separatedBy: "\n\n")
+        check(paragraphs.count == 2, "two paragraphs preserved, got \(paragraphs.count)")
+    }
+}
+
+group("U3: List items not joined") {
+    let input = pad("""
+      Here is a long introduction paragraph that explains what the list below is
+      going to contain and provides the necessary context for the reader to know.
+
+      - First item in the list
+      - Second item in the list
+      - Third item in the list
+    """)
+    let result = cleanClaudeOutput(input)
+    check(result != nil, "detected")
+    if let r = result {
+        check(r.contains("\n- First"), "list items stay separate")
+        check(r.contains("\n- Second"), "list items stay separate")
+    }
+}
+
+group("U4: Numbered list items not joined") {
+    let input = pad("""
+      Here is a long introduction paragraph that explains what the numbered list
+      below is going to contain and provides the necessary context for reading.
+
+      1. First numbered item
+      2. Second numbered item
+      3. Third numbered item
+    """)
+    let result = cleanClaudeOutput(input)
+    check(result != nil, "detected")
+    if let r = result {
+        check(r.contains("\n1. First"), "numbered items stay separate")
+        check(r.contains("\n2. Second"), "numbered items stay separate")
+    }
+}
+
+group("U5: Code blocks not unwrapped") {
+    let input = pad("""
+      Here is a description of the code that follows and it is long enough to be
+      considered a terminal-wrapped line that would normally be joined together.
+
+      ```swift
+      func hello() {
+          print("world")
+      }
+      ```
+    """)
+    let result = cleanClaudeOutput(input)
+    check(result != nil, "detected")
+    if let r = result {
+        check(r.contains("```swift\nfunc hello()"), "code block preserved")
+        check(r.contains("\"world\")\n}"), "code indentation preserved")
+    }
+}
+
+group("U6: Short lines not joined") {
+    let input = pad("""
+      ⏺ Build complete.
+
+      Files changed:
+      src/main.ts
+      src/utils.ts
+      README.md
+    """)
+    let result = cleanClaudeOutput(input)
+    check(result != nil, "detected")
+    if let r = result {
+        check(r.contains("src/main.ts\nsrc/utils.ts"), "short lines stay separate")
+    }
+}
+
+group("U7: Headings not joined") {
+    let input = pad("""
+      This is a long paragraph that explains the overall structure of the document
+      and provides context that the reader needs to understand the sections below.
+
+      ## Section Two
+
+      Another long paragraph that goes into detail about section two and provides
+      additional context and information that the reader needs to fully understand.
+    """)
+    let result = cleanClaudeOutput(input)
+    check(result != nil, "detected")
+    if let r = result {
+        check(r.contains("\n## Section Two\n"), "heading stays separate")
+    }
+}
+
+group("U8: Mixed content — paragraphs unwrapped, structure preserved") {
+    let input = pad("""
+      ⏺ Here is a summary of the changes that were made to the project as part of
+      this latest update to the codebase and the associated documentation files.
+
+      Key changes:
+      - Updated the build configuration
+      - Fixed the deployment script
+      - Added new tests
+
+      The deployment should now work correctly and the tests should all pass when
+      run against the staging environment with the updated configuration values.
+    """)
+    let result = cleanClaudeOutput(input)
+    check(result != nil, "detected")
+    if let r = result {
+        // ⏺ line is structural, should NOT be joined
+        check(r.hasPrefix("⏺ Here is a summary"), "⏺ line preserved")
+        // But the continuation after ⏺ should be joined since ⏺ is structural
+        // Actually ⏺ line is structural so it won't join with next line
+        check(r.contains("\n- Updated"), "list items separate")
+        // Last paragraph should be joined
+        check(r.contains("pass when run against"), "last paragraph joined")
+    }
+}
+
 // MARK: - Edge Cases
 
 group("E1: Below both thresholds") {

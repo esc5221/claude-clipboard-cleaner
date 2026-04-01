@@ -35,7 +35,9 @@ func cleanClaudeOutput(_ text: String) -> String? {
         return s
     }.joined(separator: "\n")
 
-    return cleaned != text ? cleaned : nil
+    let unwrapped = unwrapParagraphLines(cleaned)
+
+    return unwrapped != text ? unwrapped : nil
 }
 
 // MARK: - Path A: Trailing Space Padding
@@ -63,6 +65,74 @@ func hasTrailingSpacePadding(_ lines: [String]) -> Bool {
 
     guard paddedCount >= 3 else { return false }
     return Double(paddedCount) / Double(max(nonEmptyCount, 1)) >= 0.5
+}
+
+// MARK: - Post-Processing: Paragraph Unwrapping
+
+/// Join terminal-wrapped lines back into paragraphs.
+/// A line is joined to the previous when the previous line is long (≥60 chars,
+/// suggesting it was wrapped by the terminal) and the current line is not a
+/// structural element (list item, heading, code fence, etc.).
+func unwrapParagraphLines(_ text: String) -> String {
+    let lines = text.components(separatedBy: "\n")
+    guard lines.count >= 2 else { return text }
+
+    var result: [String] = []
+    var inCodeBlock = false
+
+    for line in lines {
+        // Track fenced code blocks
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("```") {
+            inCodeBlock = !inCodeBlock
+            result.append(line)
+            continue
+        }
+
+        if inCodeBlock {
+            result.append(line)
+            continue
+        }
+
+        let shouldJoin = !result.isEmpty
+            && !result.last!.isEmpty
+            && !line.isEmpty
+            && result.last!.count >= 60
+            && !isStructuralLine(line)
+            && !isStructuralLine(result.last!)
+
+        if shouldJoin {
+            result[result.count - 1] += " " + line
+        } else {
+            result.append(line)
+        }
+    }
+
+    return result.joined(separator: "\n")
+}
+
+/// Lines that represent structural elements and should never be joined.
+func isStructuralLine(_ line: String) -> Bool {
+    let t = line.trimmingCharacters(in: .whitespaces)
+    if t.isEmpty { return false }
+    if t.hasPrefix("#") { return true }
+    if t.hasPrefix("- ") || t.hasPrefix("* ") || t.hasPrefix("+ ") { return true }
+    if t.hasPrefix("> ") { return true }
+    if t.hasPrefix("⏺") || t.hasPrefix("■") { return true }
+    if t.hasPrefix("|") { return true }
+    if t.hasPrefix("```") { return true }
+    // Numbered list: "1. " or "1) "
+    if let dot = t.firstIndex(of: "."), dot > t.startIndex,
+       t[t.startIndex..<dot].allSatisfy({ $0.isNumber }),
+       t.index(after: dot) < t.endIndex, t[t.index(after: dot)] == " " {
+        return true
+    }
+    if let paren = t.firstIndex(of: ")"), paren > t.startIndex,
+       t[t.startIndex..<paren].allSatisfy({ $0.isNumber }),
+       t.index(after: paren) < t.endIndex, t[t.index(after: paren)] == " " {
+        return true
+    }
+    return false
 }
 
 // MARK: - Path B: Leading 2-Space Pattern
